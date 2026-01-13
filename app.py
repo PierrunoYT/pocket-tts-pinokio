@@ -7,6 +7,7 @@ import numpy as np
 from pocket_tts import TTSModel
 import tempfile
 import os
+from huggingface_hub import login as hf_login
 
 # Initialize the TTS model (loaded once at startup)
 print("Loading PocketTTS model...")
@@ -105,6 +106,17 @@ def clear_custom_voice_cache():
     return "🗑️ Custom voice cache cleared"
 
 
+def set_hf_token(token):
+    """Set Hugging Face API token for voice cloning"""
+    if not token or token.strip() == "":
+        return "⚠️ Please enter a valid Hugging Face API token"
+    try:
+        hf_login(token=token, add_to_git_credential=False)
+        return "✅ Hugging Face token set successfully! You can now use voice cloning."
+    except Exception as e:
+        return f"❌ Error setting token: {str(e)}"
+
+
 # Create the Gradio interface
 with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Soft()) as demo:
     gr.Markdown("""
@@ -119,6 +131,35 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
     
     **Note:** This model currently supports English only.
     """)
+    
+    # Hugging Face API Key section
+    with gr.Accordion("🔑 Hugging Face API Key (Optional - for voice cloning)", open=False):
+        with gr.Row():
+            hf_token_input = gr.Textbox(
+                label="Hugging Face API Token",
+                placeholder="Enter your HF token here (hf_...)",
+                type="password"
+            )
+            set_token_btn = gr.Button("Set Token", size="sm", variant="secondary")
+        token_status = gr.Textbox(
+            label="Token Status",
+            interactive=False,
+            value="ℹ️ Token not set. Voice cloning will use cached voices only."
+        )
+        
+        gr.Markdown("""
+        To enable voice cloning:
+        1. Get your token from [Hugging Face Settings](https://huggingface.co/settings/tokens)
+        2. Accept the terms at [pocket-tts model card](https://huggingface.co/kyutai/pocket-tts)
+        3. Paste your token here and click "Set Token"
+        """)
+        
+        set_token_btn.click(
+            fn=set_hf_token,
+            inputs=hf_token_input,
+            outputs=token_status
+        )
+    
     
     with gr.Row():
         with gr.Column(scale=2):
