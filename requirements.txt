@@ -8,7 +8,7 @@ pocket-tts>=0.1.0
 torch>=2.5.0
 
 # Gradio for the web interface
-gradio>=4.0.0
+gradio==5.50
 
 # Audio processing
 scipy>=1.10.0
