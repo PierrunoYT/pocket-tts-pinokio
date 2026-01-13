@@ -153,7 +153,6 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
                     """)
                 
                 with gr.Tab("Voice Cloning"):
-                    use_custom.render()
                     use_custom = gr.Checkbox(
                         value=True,
                         label="Use Custom Voice",
