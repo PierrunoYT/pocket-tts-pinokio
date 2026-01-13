@@ -9,10 +9,17 @@ import tempfile
 import os
 from huggingface_hub import login as hf_login
 
-# Initialize the TTS model (loaded once at startup)
-print("Loading PocketTTS model...")
-tts_model = TTSModel.load_model()
-print(f"Model loaded successfully! Sample rate: {tts_model.sample_rate}Hz")
+# Global model variable - will be loaded after token is set
+tts_model = None
+
+def load_model():
+    """Load the TTS model"""
+    global tts_model
+    if tts_model is None:
+        print("Loading PocketTTS model...")
+        tts_model = TTSModel.load_model()
+        print(f"Model loaded successfully! Sample rate: {tts_model.sample_rate}Hz")
+    return tts_model
 
 # Pre-defined voices from the catalog
 PRESET_VOICES = {
@@ -32,9 +39,10 @@ voice_state_cache = {}
 
 def get_voice_state(voice_path):
     """Get or create a cached voice state"""
+    model = load_model()
     if voice_path not in voice_state_cache:
         print(f"Loading voice state for: {voice_path}")
-        voice_state_cache[voice_path] = tts_model.get_state_for_audio_prompt(voice_path)
+        voice_state_cache[voice_path] = model.get_state_for_audio_prompt(voice_path)
     return voice_state_cache[voice_path]
 
 
@@ -55,6 +63,8 @@ def generate_speech(text, preset_voice, custom_voice_file, use_custom_voice):
         return None, "⚠️ Please enter some text to synthesize."
     
     try:
+        model = load_model()
+        
         # Determine which voice to use
         if use_custom_voice and custom_voice_file is not None:
             # Use custom voice from uploaded file
@@ -72,24 +82,24 @@ def generate_speech(text, preset_voice, custom_voice_file, use_custom_voice):
         # Get voice state (cached for preset voices)
         if use_custom_voice and custom_voice_file is not None:
             # Don't cache custom voice files
-            voice_state = tts_model.get_state_for_audio_prompt(voice_path)
+            voice_state = model.get_state_for_audio_prompt(voice_path)
         else:
             voice_state = get_voice_state(voice_path)
         
         # Generate audio
         print(f"Synthesizing text: {text[:50]}...")
-        audio_tensor = tts_model.generate_audio(voice_state, text)
+        audio_tensor = model.generate_audio(voice_state, text)
         
         # Convert to numpy array for Gradio
         audio_np = audio_tensor.numpy()
         
         # Get audio duration
-        duration = len(audio_np) / tts_model.sample_rate
+        duration = len(audio_np) / model.sample_rate
         
-        success_msg = f"✅ Generated {duration:.2f}s of audio at {tts_model.sample_rate}Hz"
+        success_msg = f"✅ Generated {duration:.2f}s of audio at {model.sample_rate}Hz"
         print(success_msg)
         
-        return (tts_model.sample_rate, audio_np), success_msg
+        return (model.sample_rate, audio_np), success_msg
     
     except Exception as e:
         error_msg = f"❌ Error generating speech: {str(e)}"
@@ -108,11 +118,19 @@ def clear_custom_voice_cache():
 
 def set_hf_token(token):
     """Set Hugging Face API token for voice cloning"""
+    global tts_model
     if not token or token.strip() == "":
         return "⚠️ Please enter a valid Hugging Face API token"
     try:
+        # Set environment variable for huggingface_hub
+        os.environ['HF_TOKEN'] = token
+        # Also try to login
         hf_login(token=token, add_to_git_credential=False)
-        return "✅ Hugging Face token set successfully! You can now use voice cloning."
+        # Reset model so it reloads with the new token
+        tts_model = None
+        # Load the model with the new token
+        load_model()
+        return "✅ Hugging Face token set successfully! Model loaded with voice cloning support."
     except Exception as e:
         return f"❌ Error setting token: {str(e)}"
 
@@ -286,7 +304,7 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print("🚀 Starting PocketTTS Gradio Interface")
     print("="*60)
-    print(f"Model sample rate: {tts_model.sample_rate}Hz")
+    print("Model will be loaded on first use or after setting HF token")
     print(f"Available voices: {', '.join(PRESET_VOICES.keys())}")
     print("="*60 + "\n")
     
