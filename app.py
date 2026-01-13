@@ -160,8 +160,7 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
                     )
                     custom_voice = gr.Audio(
                         label="Upload Voice Sample",
-                        type="filepath",
-                        info="Upload a WAV file (3-10 seconds recommended) to clone a voice"
+                        type="filepath"
                     )
                     gr.Markdown("""
                     **Voice Cloning Tips:**
