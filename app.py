@@ -22,15 +22,16 @@ def load_model():
     return tts_model
 
 # Pre-defined voices from the catalog
+# Use voice name aliases directly - pocket-tts has built-in support for these
 PRESET_VOICES = {
-    "Alba": "hf://kyutai/tts-voices/alba-mackenna/casual.wav",
-    "Marius": "hf://kyutai/tts-voices/marius-pontmercy/casual.wav",
-    "Javert": "hf://kyutai/tts-voices/javert/casual.wav",
-    "Jean": "hf://kyutai/tts-voices/jean-valjean/casual.wav",
-    "Fantine": "hf://kyutai/tts-voices/fantine/casual.wav",
-    "Cosette": "hf://kyutai/tts-voices/cosette/casual.wav",
-    "Eponine": "hf://kyutai/tts-voices/eponine/casual.wav",
-    "Azelma": "hf://kyutai/tts-voices/azelma/casual.wav",
+    "Alba": "alba",
+    "Marius": "marius",
+    "Javert": "javert",
+    "Jean": "jean",
+    "Fantine": "fantine",
+    "Cosette": "cosette",
+    "Eponine": "eponine",
+    "Azelma": "azelma",
 }
 
 # Cache for voice states to avoid reloading
