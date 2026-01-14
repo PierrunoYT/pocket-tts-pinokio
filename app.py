@@ -47,15 +47,14 @@ def get_voice_state(voice_path):
     return voice_state_cache[voice_path]
 
 
-def generate_speech(text, preset_voice, custom_voice_file, use_custom_voice):
+def generate_speech(text, preset_voice, custom_voice_file):
     """
     Generate speech from text using either a preset voice or custom voice clone
     
     Args:
         text: The text to synthesize
         preset_voice: Selected preset voice name
-        custom_voice_file: Uploaded audio file for voice cloning
-        use_custom_voice: Whether to use custom voice or preset
+        custom_voice_file: Uploaded audio file for voice cloning (if None, uses preset)
     
     Returns:
         tuple: (sample_rate, audio_array) for Gradio audio output
@@ -67,7 +66,7 @@ def generate_speech(text, preset_voice, custom_voice_file, use_custom_voice):
         model = load_model()
         
         # Determine which voice to use
-        if use_custom_voice and custom_voice_file is not None:
+        if custom_voice_file is not None:
             # Use custom voice from uploaded file
             voice_path = custom_voice_file
             status_msg = f"🎤 Generating with custom voice clone..."
@@ -81,7 +80,7 @@ def generate_speech(text, preset_voice, custom_voice_file, use_custom_voice):
         print(status_msg)
         
         # Get voice state (cached for preset voices)
-        if use_custom_voice and custom_voice_file is not None:
+        if custom_voice_file is not None:
             # Don't cache custom voice files
             voice_state = model.get_state_for_audio_prompt(voice_path)
         else:
@@ -191,9 +190,8 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
             )
             
             # Voice selection tabs
-            with gr.Tabs():
-                with gr.Tab("Preset Voices"):
-                    use_custom = gr.Checkbox(value=False, visible=False)
+            with gr.Tabs() as tabs:
+                with gr.Tab("Preset Voices", id=0):
                     preset_voice = gr.Dropdown(
                         choices=list(PRESET_VOICES.keys()),
                         value="Alba",
@@ -212,12 +210,7 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
                     - **Azelma**: Playful
                     """)
                 
-                with gr.Tab("Voice Cloning"):
-                    use_custom = gr.Checkbox(
-                        value=True,
-                        label="Use Custom Voice",
-                        info="Enable to use your uploaded audio for voice cloning"
-                    )
+                with gr.Tab("Voice Cloning", id=1):
                     custom_voice = gr.Audio(
                         label="Upload Voice Sample",
                         type="filepath"
@@ -266,13 +259,13 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
     gr.Markdown("### 📝 Example Texts")
     gr.Examples(
         examples=[
-            ["Hello world, this is a test of the Pocket TTS system.", "Alba", None, False],
-            ["The quick brown fox jumps over the lazy dog.", "Marius", None, False],
-            ["Welcome to the world of efficient text-to-speech synthesis, powered by Kyutai's Pocket TTS.", "Jean", None, False],
-            ["Text-to-speech technology has come a long way. Now we can generate natural-sounding speech entirely on CPU.", "Fantine", None, False],
-            ["With voice cloning, we can replicate speaking styles and characteristics from just a short audio sample.", "Cosette", None, False],
+            ["Hello world, this is a test of the Pocket TTS system.", "Alba", None],
+            ["The quick brown fox jumps over the lazy dog.", "Marius", None],
+            ["Welcome to the world of efficient text-to-speech synthesis, powered by Kyutai's Pocket TTS.", "Jean", None],
+            ["Text-to-speech technology has come a long way. Now we can generate natural-sounding speech entirely on CPU.", "Fantine", None],
+            ["With voice cloning, we can replicate speaking styles and characteristics from just a short audio sample.", "Cosette", None],
         ],
-        inputs=[text_input, preset_voice, custom_voice, use_custom],
+        inputs=[text_input, preset_voice, custom_voice],
         label="Click an example to try it out"
     )
     
@@ -291,7 +284,7 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
     # Event handlers
     generate_btn.click(
         fn=generate_speech,
-        inputs=[text_input, preset_voice, custom_voice, use_custom],
+        inputs=[text_input, preset_voice, custom_voice],
         outputs=[audio_output, status_output]
     )
     
