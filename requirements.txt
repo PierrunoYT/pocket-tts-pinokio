@@ -13,6 +13,7 @@ gradio==5.50
 # Audio processing
 scipy>=1.10.0
 numpy>=1.24.0
+soundfile>=0.12.0
 
 # Optional: for better performance
 # uvicorn>=0.24.0  # If you want to run with uvicorn instead of gradio's default server

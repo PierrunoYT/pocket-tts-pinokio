@@ -8,6 +8,7 @@ from pocket_tts import TTSModel
 import tempfile
 import os
 from huggingface_hub import login as hf_login
+import soundfile as sf
 
 # Global model variable - will be loaded after token is set
 tts_model = None
@@ -47,6 +48,46 @@ def get_voice_state(voice_path):
     return voice_state_cache[voice_path]
 
 
+def convert_audio_format(audio_path):
+    """
+    Convert uploaded audio to a compatible PCM WAV format
+    
+    Args:
+        audio_path: Path to the uploaded audio file
+    
+    Returns:
+        str: Path to the converted audio file (temp file)
+    """
+    try:
+        # Read the audio file
+        audio_data, sample_rate = sf.read(audio_path)
+        
+        # Convert to mono if stereo
+        if len(audio_data.shape) > 1:
+            audio_data = np.mean(audio_data, axis=1)
+        
+        # Normalize to [-1, 1] range if needed
+        if audio_data.dtype == np.int16:
+            audio_data = audio_data.astype(np.float32) / 32768.0
+        elif audio_data.dtype == np.int32:
+            audio_data = audio_data.astype(np.float32) / 2147483648.0
+        
+        # Create a temporary file for the converted audio
+        temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+        temp_path = temp_file.name
+        temp_file.close()
+        
+        # Write as PCM WAV (subtype='PCM_16')
+        sf.write(temp_path, audio_data, sample_rate, subtype='PCM_16')
+        
+        print(f"Converted audio: {sample_rate}Hz, {len(audio_data)/sample_rate:.2f}s")
+        return temp_path
+        
+    except Exception as e:
+        print(f"Error converting audio: {str(e)}")
+        raise
+
+
 def generate_speech(text, preset_voice, custom_voice_file):
     """
     Generate speech from text using either a preset voice or custom voice clone
@@ -66,18 +107,22 @@ def generate_speech(text, preset_voice, custom_voice_file):
         model = load_model()
         
         # Determine which voice to use
+        converted_audio_path = None
         if custom_voice_file is not None:
             # Use custom voice from uploaded file
-            voice_path = custom_voice_file
             status_msg = f"🎤 Generating with custom voice clone..."
+            print(status_msg)
+            # Convert the uploaded audio to a compatible format
+            print(f"Converting uploaded audio: {custom_voice_file}")
+            converted_audio_path = convert_audio_format(custom_voice_file)
+            voice_path = converted_audio_path
         else:
             # Use preset voice
             if preset_voice not in PRESET_VOICES:
                 return None, f"⚠️ Invalid preset voice: {preset_voice}"
             voice_path = PRESET_VOICES[preset_voice]
             status_msg = f"🎤 Generating with voice: {preset_voice}..."
-        
-        print(status_msg)
+            print(status_msg)
         
         # Get voice state (cached for preset voices)
         if custom_voice_file is not None:
@@ -99,11 +144,26 @@ def generate_speech(text, preset_voice, custom_voice_file):
         success_msg = f"✅ Generated {duration:.2f}s of audio at {model.sample_rate}Hz"
         print(success_msg)
         
+        # Clean up temporary converted audio file
+        if converted_audio_path and os.path.exists(converted_audio_path):
+            try:
+                os.unlink(converted_audio_path)
+            except Exception as cleanup_error:
+                print(f"Warning: Could not delete temp file: {cleanup_error}")
+        
         return (model.sample_rate, audio_np), success_msg
     
     except Exception as e:
         error_msg = f"❌ Error generating speech: {str(e)}"
         print(error_msg)
+        
+        # Clean up temporary converted audio file in case of error
+        if converted_audio_path and os.path.exists(converted_audio_path):
+            try:
+                os.unlink(converted_audio_path)
+            except Exception as cleanup_error:
+                print(f"Warning: Could not delete temp file: {cleanup_error}")
+        
         return None, error_msg
 
 
@@ -220,7 +280,8 @@ with gr.Blocks(title="PocketTTS - CPU-based Text-to-Speech", theme=gr.themes.Sof
                     - Use clear audio with minimal background noise
                     - 3-10 seconds is ideal
                     - Single speaker only
-                    - WAV format preferred
+                    - Supports WAV, MP3, FLAC, OGG formats
+                    - Audio will be automatically converted to compatible format
                     
                     ⚠️ **Important:** Use only with explicit and lawful consent. Voice cloning without consent is prohibited.
                     """)
