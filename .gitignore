@@ -1,0 +1,6 @@
+env/
+logs/
+app/__pycache__/
+app/.gradio/
+app/outputs/
+app/tmp/

@@ -1,0 +1,6 @@
+{
+  "version": "5.0",
+  "title": "PocketTTS",
+  "description": "Lightweight CPU text-to-speech with preset voices and optional Hugging Face-authenticated voice cloning.",
+  "icon": "icon.png"
+}

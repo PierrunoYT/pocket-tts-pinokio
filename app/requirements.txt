@@ -4,17 +4,11 @@
 # Core TTS library
 pocket-tts>=0.1.0
 
-# PyTorch (CPU version is sufficient)
-torch>=2.5.0
-
 # Gradio for the web interface
 gradio==5.50
+huggingface_hub>=0.25.0
 
 # Audio processing
 scipy>=1.10.0
 numpy>=1.24.0
 soundfile>=0.12.0
-
-# Optional: for better performance
-# uvicorn>=0.24.0  # If you want to run with uvicorn instead of gradio's default server
-

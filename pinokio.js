@@ -1,8 +1,7 @@
-const path = require('path')
 module.exports = {
   version: "5.0",
   title: "PocketTTS",
-  description: "🔊 PocketTTS - A lightweight, CPU-optimized Text-to-Speech (TTS) application by Kyutai Labs. Generate natural-sounding speech with low latency (~200ms), voice cloning support, and 6x real-time performance on CPU. 100M parameter model with 8 preset voices and custom voice cloning. English only. No GPU required!",
+  description: "PocketTTS is a lightweight CPU text-to-speech launcher for Kyutai's PocketTTS model, with preset voices and optional Hugging Face-authenticated voice cloning.",
   icon: "icon.png",
   menu: async (kernel, info) => {
     let installed = info.exists("env")
@@ -11,7 +10,8 @@ module.exports = {
       start: info.running("start.js"),
       update: info.running("update.js"),
       reset: info.running("reset.js"),
-      link: info.running("link.js")
+      link: info.running("link.js"),
+      hfLogin: info.running("hf-login.js")
     }
     if (running.install) {
       return [{
@@ -19,6 +19,13 @@ module.exports = {
         icon: "fa-solid fa-plug",
         text: "Installing",
         href: "install.js",
+      }]
+    } else if (running.hfLogin) {
+      return [{
+        default: true,
+        icon: 'fa-solid fa-terminal',
+        text: "Hugging Face Login",
+        href: "hf-login.js",
       }]
     } else if (installed) {
       if (running.start) {
@@ -74,6 +81,10 @@ module.exports = {
           text: "Update",
           href: "update.js",
         }, {
+          icon: "fa-solid fa-key",
+          text: "<div><strong>Hugging Face Login</strong><div>Required for voice cloning</div></div>",
+          href: "hf-login.js",
+        }, {
           icon: "fa-solid fa-plug",
           text: "Install",
           href: "install.js",
@@ -95,6 +106,10 @@ module.exports = {
         icon: "fa-solid fa-plug",
         text: "Install",
         href: "install.js",
+      }, {
+        icon: "fa-solid fa-key",
+        text: "<div><strong>Hugging Face Login</strong><div>Optional before install; required for voice cloning</div></div>",
+        href: "hf-login.js",
       }]
     }
   }

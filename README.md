@@ -1,183 +1,120 @@
-# 🔊 PocketTTS - Lightweight CPU Text-to-Speech
+# PocketTTS Pinokio Launcher
 
-A fast, efficient Text-to-Speech (TTS) application that runs entirely on CPU. Powered by Kyutai Labs' PocketTTS model, this application provides natural-sounding speech synthesis with low latency and voice cloning capabilities.
+PocketTTS is a lightweight CPU text-to-speech launcher for Kyutai's PocketTTS model. It provides a Gradio Web UI for preset voices and optional voice cloning from a short audio sample.
 
-## ✨ Features
+## Features
 
-- ⚡ **Low Latency**: ~200ms for first audio chunk
-- 🚀 **Fast Performance**: ~6x faster than real-time
-- 🎭 **Voice Cloning**: Clone voices from short audio samples (3-10 seconds)
-- 📝 **Long Text Support**: Handles infinitely long text
-- 💻 **CPU Optimized**: Uses only 2 CPU cores, no GPU required
-- 🎤 **8 Preset Voices**: Choose from a catalog of pre-defined voices
-- 🌐 **Web Interface**: User-friendly Gradio web UI
+- CPU-friendly PocketTTS speech generation.
+- Eight built-in preset voices: Alba, Marius, Javert, Jean, Fantine, Cosette, Eponine, and Azelma.
+- Optional custom voice cloning with a Hugging Face account that has accepted the `kyutai/pocket-tts` model terms.
+- Pinokio install, start, update, reset, disk deduplication, and Hugging Face login actions.
 
-## 📋 Requirements
+## Using With Pinokio
 
-- Python 3.10+ (3.12 recommended)
-- ~200MB disk space for model download (on first use)
-- 2 CPU cores minimum
+1. Add this repository to Pinokio.
+2. Click `Install`.
+3. Click `Start`.
+4. Open `Open Web UI` when Pinokio detects the Gradio URL.
 
-## 🚀 Installation
+Preset voices can run without Hugging Face login. Voice cloning requires model access:
 
-### Using Pinokio
+1. Accept the terms at https://huggingface.co/kyutai/pocket-tts.
+2. Click `Hugging Face Login` in the launcher.
+3. Paste a Hugging Face token when `uvx hf auth login` prompts for it.
+4. Restart PocketTTS if it was already running.
 
-This project is designed to work with [Pinokio](https://pinokio.computer/). Simply:
+You can also paste a token in the Web UI's `Hugging Face Token for Voice Cloning` accordion.
 
-1. Install Pinokio
-2. Add this repository to Pinokio
-3. Click "Install" to set up dependencies
-4. Click "Start" to launch the web interface
+## Launcher Scripts
 
-### Manual Installation
+- `install.js`: installs Python dependencies from `app/requirements.txt`, then runs `torch.js`.
+- `start.js`: launches `app/app.py` in the `env` virtual environment and captures the local Gradio URL.
+- `hf-login.js`: opens an interactive Hugging Face CLI login terminal for gated voice-cloning access.
+- `update.js`: pulls the latest launcher code and upgrades app dependencies.
+- `reset.js`: removes the `env` virtual environment.
+- `link.js`: deduplicates redundant virtual environment files to save disk space.
+- `pinokio.js`: renders the Pinokio menu dynamically based on install and running state.
 
-1. Clone this repository:
-```bash
-git clone <repository-url>
-cd PocketTTS
+## Project Structure
+
+```text
+PocketTTS/
+├── app/
+│   ├── app.py
+│   └── requirements.txt
+├── install.js
+├── start.js
+├── hf-login.js
+├── update.js
+├── reset.js
+├── link.js
+├── torch.js
+├── pinokio.js
+├── pinokio.json
+└── icon.png
 ```
 
-2. Create a virtual environment (Python 3.12 recommended):
+## Manual Run
+
 ```bash
 python -m venv env
-source env/bin/activate  # On Windows: env\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Install PyTorch (CPU version):
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-```
-
-## 🎯 Usage
-
-### Starting the Application
-
-Run the Gradio web interface:
-```bash
+env\Scripts\activate
+uv pip install -r app/requirements.txt
+uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+cd app
 python app.py
 ```
 
-The web interface will be available at `http://localhost:7860`
+On macOS or Linux, activate the environment with `source env/bin/activate`.
 
-### Using Preset Voices
+## API Usage
 
-1. Select a voice from the "Preset Voices" tab
-2. Enter your text in the text box
-3. Click "🎵 Generate Speech"
-4. Listen to the generated audio
+When the Gradio app is running, the generation function is exposed as the `generate` API route.
 
-**Available Preset Voices:**
-- **Alba**: Casual, friendly tone
-- **Marius**: Young, energetic
-- **Javert**: Authoritative
-- **Jean**: Mature, wise
-- **Fantine**: Gentle, emotional
-- **Cosette**: Youthful, bright
-- **Eponine**: Expressive
-- **Azelma**: Playful
-
-### Voice Cloning
-
-1. Switch to the "Voice Cloning" tab
-2. Upload a WAV file (3-10 seconds recommended)
-3. Enable "Use Custom Voice"
-4. Enter your text and generate speech
-
-**Voice Cloning Tips:**
-- Use clear audio with minimal background noise
-- 3-10 seconds is ideal
-- Single speaker only
-- WAV format preferred
-
-## 📦 Model Information
-
-- **Model Size**: 100M parameters
-- **Sample Rate**: 24kHz
-- **Language**: English only
-- **Platform**: CPU optimized (GPU supported but not required)
-- **Model Source**: Automatically downloaded from Hugging Face on first use
-
-## 🛠️ Project Structure
-
-```
-PocketTTS/
-├── app.py              # Main Gradio application
-├── requirements.txt     # Python dependencies
-├── install.js          # Pinokio installation script
-├── start.js            # Pinokio start script
-├── update.js           # Pinokio update script
-├── reset.js            # Pinokio reset script
-├── link.js             # Pinokio deduplication script
-├── torch.js            # PyTorch installation script
-├── pinokio.js          # Pinokio configuration
-└── icon.png            # Application icon
-```
-
-## 🔧 Scripts
-
-### Pinokio Scripts
-
-- **install.js**: Installs all dependencies and sets up the environment
-- **start.js**: Launches the Gradio web interface
-- **update.js**: Updates dependencies and pulls latest changes
-- **reset.js**: Removes the virtual environment (resets to pre-install state)
-- **link.js**: Deduplicates redundant library files to save disk space
-
-## 📝 Example Usage
+### Python
 
 ```python
-from pocket_tts import TTSModel
+from gradio_client import Client
 
-# Load the model
-tts_model = TTSModel.load_model()
-
-# Generate speech with a preset voice
-voice_state = tts_model.get_state_for_audio_prompt("hf://kyutai/tts-voices/alba-mackenna/casual.wav")
-audio = tts_model.generate_audio(voice_state, "Hello, world!")
-
-# Or use a custom voice file
-voice_state = tts_model.get_state_for_audio_prompt("path/to/your/voice.wav")
-audio = tts_model.generate_audio(voice_state, "Your text here")
+client = Client("http://127.0.0.1:7860")
+result = client.predict(
+    text="Hello from PocketTTS.",
+    preset_voice="Alba",
+    custom_voice_file=None,
+    api_name="/generate",
+)
+print(result)
 ```
 
-## ⚠️ Important Notes
+### JavaScript
 
-### Prohibited Use
+```javascript
+import { Client } from "@gradio/client";
 
-Use of this model must comply with all applicable laws and regulations. Prohibited uses include:
+const client = await Client.connect("http://127.0.0.1:7860");
+const result = await client.predict("/generate", {
+  text: "Hello from PocketTTS.",
+  preset_voice: "Alba",
+  custom_voice_file: null
+});
+console.log(result);
+```
 
-- Voice impersonation without explicit and lawful consent
-- Misinformation, disinformation, or deception
-- Generating unlawful, harmful, or privacy-invasive content
+### Curl
 
-**Always obtain explicit and lawful consent before cloning someone's voice.**
+```bash
+curl -X POST http://127.0.0.1:7860/gradio_api/call/generate \
+  -H "Content-Type: application/json" \
+  -d '{"data":["Hello from PocketTTS.","Alba",null]}'
+```
 
-## 🔗 Links
+## Safety
 
-- [GitHub Repository](https://github.com/kyutai-labs/pocket-tts)
-- [Hugging Face Model](https://huggingface.co/kyutai/pocket-tts)
-- [Research Paper](https://kyutai.org/research/pocket-tts)
+Use voice cloning only with explicit and lawful consent. Prohibited uses include impersonation without consent, misinformation, deception, and unlawful or privacy-invasive content.
 
-## 📄 License
+## Links
 
-Please refer to the original PocketTTS repository for license information.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Support
-
-For issues related to:
-- **PocketTTS model**: Check the [official repository](https://github.com/kyutai-labs/pocket-tts)
-- **This application**: Open an issue in this repository
-
----
-
-**Note**: This application is a wrapper around Kyutai Labs' PocketTTS model, providing an easy-to-use web interface for text-to-speech synthesis.
+- PocketTTS model: https://huggingface.co/kyutai/pocket-tts
+- PocketTTS source: https://github.com/kyutai-labs/pocket-tts
+- Research: https://kyutai.org/research/pocket-tts
 

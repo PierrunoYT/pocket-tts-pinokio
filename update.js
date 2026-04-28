@@ -10,6 +10,7 @@ module.exports = {
       method: "shell.run",
       params: {
         venv: "env",
+        path: "app",
         message: [
           "uv pip install --upgrade -r requirements.txt"
         ]
@@ -18,7 +19,7 @@ module.exports = {
     {
       method: "notify",
       params: {
-        html: "Update complete! The launcher and dependencies have been updated to the latest versions."
+        html: "Update complete. The launcher and dependencies have been updated."
       }
     }
   ]
