@@ -69,14 +69,14 @@ On macOS or Linux, activate the environment with `source env/bin/activate`.
 
 ## API Usage
 
-When the Gradio app is running, the generation function is exposed as the `generate` API route.
+When the Gradio app is running, the generation function is exposed as the `generate` API route. The port is assigned dynamically by Pinokio — check the `Open Web UI` URL in the launcher for the actual port (e.g. `http://127.0.0.1:PORT`).
 
 ### Python
 
 ```python
 from gradio_client import Client
 
-client = Client("http://127.0.0.1:7860")
+client = Client("http://127.0.0.1:PORT")  # replace PORT with the port shown in the launcher
 result = client.predict(
     text="Hello from PocketTTS.",
     preset_voice="Alba",
@@ -91,7 +91,7 @@ print(result)
 ```javascript
 import { Client } from "@gradio/client";
 
-const client = await Client.connect("http://127.0.0.1:7860");
+const client = await Client.connect("http://127.0.0.1:PORT");  // replace PORT with the port shown in the launcher
 const result = await client.predict("/generate", {
   text: "Hello from PocketTTS.",
   preset_voice: "Alba",
@@ -103,7 +103,7 @@ console.log(result);
 ### Curl
 
 ```bash
-curl -X POST http://127.0.0.1:7860/gradio_api/call/generate \
+curl -X POST http://127.0.0.1:PORT/gradio_api/call/generate \
   -H "Content-Type: application/json" \
   -d '{"data":["Hello from PocketTTS.","Alba",null]}'
 ```
