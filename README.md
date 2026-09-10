@@ -28,11 +28,11 @@ You can also paste a token in the Web UI's `Hugging Face Token for Voice Cloning
 ## Launcher Scripts
 
 - `install.js`: installs Python dependencies from `app/requirements.txt`, then runs `torch.js`.
-- `start.js`: launches `app/app.py` in the `env` virtual environment and captures the local Gradio URL.
+- `start.js`: launches `app/app.py` in the `app/env` virtual environment and captures the local Gradio URL.
 - `hf-login.js`: opens an interactive Hugging Face CLI login terminal for gated voice-cloning access.
 - `update.js`: pulls the latest launcher code and upgrades app dependencies.
-- `reset.js`: removes the `env` virtual environment.
-- `link.js`: deduplicates redundant virtual environment files to save disk space.
+- `reset.js`: removes the `app/env` virtual environment, leaving the app source in place.
+- `link.js`: deduplicates redundant `app/env` files to save disk space.
 - `pinokio.js`: renders the Pinokio menu dynamically based on install and running state.
 
 ## Project Structure
@@ -51,21 +51,40 @@ PocketTTS/
 ├── torch.js
 ├── pinokio.js
 ├── pinokio.json
+├── .gitignore
+├── README.md
 └── icon.png
 ```
 
+The launcher creates its virtual environment at `app/env`, which is gitignored.
+
 ## Manual Run
 
+Use `app/env` so a manual run shares the virtual environment the launcher creates.
+
+On Windows:
+
+```bat
+python -m venv app\env
+app\env\Scripts\activate
+uv pip install -r app\requirements.txt
+uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+cd app
+python app.py
+```
+
+On macOS or Linux:
+
 ```bash
-python -m venv env
-env\Scripts\activate
+python -m venv app/env
+source app/env/bin/activate
 uv pip install -r app/requirements.txt
 uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 cd app
 python app.py
 ```
 
-On macOS or Linux, activate the environment with `source env/bin/activate`.
+A manual run listens on port 7860 unless you set `PORT`.
 
 ## API Usage
 
@@ -102,10 +121,16 @@ console.log(result);
 
 ### Curl
 
+Gradio's HTTP API is two-step: the POST queues the job and returns an
+`event_id`, then a GET on that id streams the result.
+
 ```bash
-curl -X POST http://127.0.0.1:PORT/gradio_api/call/generate \
+EVENT_ID=$(curl -s -X POST http://127.0.0.1:PORT/gradio_api/call/generate \
   -H "Content-Type: application/json" \
-  -d '{"data":["Hello from PocketTTS.","Alba",null]}'
+  -d '{"data":["Hello from PocketTTS.","Alba",null]}' \
+  | grep -o '"event_id":"[^"]*"' | cut -d'"' -f4)
+
+curl -N http://127.0.0.1:PORT/gradio_api/call/generate/$EVENT_ID
 ```
 
 ## Safety
