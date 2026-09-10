@@ -4,7 +4,7 @@ module.exports = {
   description: "PocketTTS is a lightweight CPU text-to-speech launcher for Kyutai's PocketTTS model, with preset voices and optional Hugging Face-authenticated voice cloning.",
   icon: "icon.png",
   menu: async (kernel, info) => {
-    let installed = info.exists("env")
+    let installed = info.exists("app/env")
     let running = {
       install: info.running("install.js"),
       start: info.running("start.js"),
