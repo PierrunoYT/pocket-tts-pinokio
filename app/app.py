@@ -39,6 +39,11 @@ HF_HELP = (
 )
 MODEL_ID = "kyutai/pocket-tts"
 
+# Mirrors the selected voice tab. API callers never send one, because gr.State
+# is excluded from the API schema, so None means "decide from the arguments".
+VOICE_MODE_PRESET = "preset"
+VOICE_MODE_CLONE = "clone"
+
 
 def explain_model_error(error):
     message = str(error)
@@ -110,16 +115,31 @@ def to_gradio_audio(audio_tensor):
     return np.ascontiguousarray(audio_np)
 
 
-def generate_speech(text, preset_voice, custom_voice_file):
+def generate_speech(text, preset_voice, custom_voice_file, voice_mode=None):
     if not text or not text.strip():
         return None, "Please enter text to synthesize."
+
+    # The tab the user is on decides the voice source, so an upload left behind
+    # on the cloning tab no longer overrides an explicit preset selection.
+    # voice_mode is None for API callers, who instead get the documented
+    # behavior of cloning whenever a sample is supplied.
+    if voice_mode is None:
+        use_clone = custom_voice_file is not None
+    else:
+        use_clone = voice_mode == VOICE_MODE_CLONE
+
+    if use_clone and custom_voice_file is None:
+        return None, (
+            "Upload a voice sample on the Voice Cloning tab, "
+            "or switch to the Preset Voices tab."
+        )
 
     converted_audio_path = None
 
     try:
         model = load_model()
 
-        if custom_voice_file is not None:
+        if use_clone:
             print(f"Converting uploaded audio: {custom_voice_file}")
             converted_audio_path = convert_audio_format(custom_voice_file)
             voice_state = model.get_state_for_audio_prompt(converted_audio_path)
@@ -252,8 +272,10 @@ with gr.Blocks(title="PocketTTS", theme=gr.themes.Soft()) as demo:
                 value="Hello world, this is a test of the PocketTTS system.",
             )
 
+            voice_mode = gr.State(None)
+
             with gr.Tabs():
-                with gr.Tab("Preset Voices"):
+                with gr.Tab("Preset Voices") as preset_tab:
                     preset_voice = gr.Dropdown(
                         choices=list(PRESET_VOICES.keys()),
                         value="Alba",
@@ -265,14 +287,26 @@ with gr.Blocks(title="PocketTTS", theme=gr.themes.Soft()) as demo:
                         "Cosette, Eponine, and Azelma."
                     )
 
-                with gr.Tab("Voice Cloning"):
+                with gr.Tab("Voice Cloning") as clone_tab:
                     custom_voice = gr.Audio(label="Upload Voice Sample", type="filepath")
                     gr.Markdown(
                         """
                         Use a clear single-speaker clip, ideally 3-10 seconds.
+                        The uploaded sample is used only while this tab is
+                        selected; switch to Preset Voices to use a preset again.
                         Only clone voices with explicit and lawful consent.
                         """
                     )
+
+            # api_name=False keeps these UI-only handlers out of the API schema.
+            # Gradio 6.0 replaces it with api_visibility="private", which the
+            # pinned gradio==5.50 does not yet accept.
+            preset_tab.select(
+                lambda: VOICE_MODE_PRESET, outputs=voice_mode, api_name=False
+            )
+            clone_tab.select(
+                lambda: VOICE_MODE_CLONE, outputs=voice_mode, api_name=False
+            )
 
             generate_btn = gr.Button("Generate Speech", variant="primary", size="lg")
 
@@ -300,7 +334,7 @@ with gr.Blocks(title="PocketTTS", theme=gr.themes.Soft()) as demo:
 
     generate_btn.click(
         fn=generate_speech,
-        inputs=[text_input, preset_voice, custom_voice],
+        inputs=[text_input, preset_voice, custom_voice, voice_mode],
         outputs=[audio_output, status_output],
         api_name="generate",
     )
