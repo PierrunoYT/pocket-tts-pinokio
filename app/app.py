@@ -4,6 +4,7 @@ Gradio UI for PocketTTS.
 
 import os
 import tempfile
+import threading
 
 import gradio as gr
 import numpy as np
@@ -15,6 +16,11 @@ from pocket_tts import TTSModel
 
 tts_model = None
 voice_state_cache = {}
+
+# Gradio serves requests from a worker thread pool, so the lazily initialized
+# model and the voice-state cache both need guarding against concurrent access.
+_model_lock = threading.Lock()
+_cache_lock = threading.Lock()
 
 PRESET_VOICES = {
     "Alba": "alba",
@@ -43,38 +49,65 @@ def explain_model_error(error):
 
 def load_model():
     global tts_model
-    if tts_model is None:
-        print("Loading PocketTTS model...")
-        tts_model = TTSModel.load_model()
-        print(f"Model loaded successfully. Sample rate: {tts_model.sample_rate}Hz")
-    return tts_model
+    with _model_lock:
+        if tts_model is None:
+            print("Loading PocketTTS model...")
+            tts_model = TTSModel.load_model()
+            print(f"Model loaded successfully. Sample rate: {tts_model.sample_rate}Hz")
+        return tts_model
 
 
 def get_voice_state(voice_path):
     model = load_model()
-    if voice_path not in voice_state_cache:
-        print(f"Loading voice state for: {voice_path}")
-        voice_state_cache[voice_path] = model.get_state_for_audio_prompt(voice_path)
-    return voice_state_cache[voice_path]
+    with _cache_lock:
+        if voice_path not in voice_state_cache:
+            print(f"Loading voice state for: {voice_path}")
+            voice_state_cache[voice_path] = model.get_state_for_audio_prompt(voice_path)
+        return voice_state_cache[voice_path]
 
 
 def convert_audio_format(audio_path):
-    audio_data, sample_rate = sf.read(audio_path)
+    # soundfile normalizes every input subtype to float32 for us, so the sample
+    # values are already in [-1, 1] regardless of the source encoding.
+    audio_data, sample_rate = sf.read(audio_path, dtype="float32")
 
-    if len(audio_data.shape) > 1:
+    if audio_data.ndim > 1:
         audio_data = np.mean(audio_data, axis=1)
 
-    if audio_data.dtype == np.int16:
-        audio_data = audio_data.astype(np.float32) / 32768.0
-    elif audio_data.dtype == np.int32:
-        audio_data = audio_data.astype(np.float32) / 2147483648.0
+    if audio_data.size == 0:
+        raise ValueError("The uploaded voice sample contains no audio.")
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
         temp_path = temp_file.name
 
-    sf.write(temp_path, audio_data, sample_rate, subtype="PCM_16")
+    try:
+        sf.write(temp_path, audio_data, sample_rate, subtype="PCM_16")
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
     print(f"Converted audio: {sample_rate}Hz, {len(audio_data) / sample_rate:.2f}s")
     return temp_path
+
+
+def to_gradio_audio(audio_tensor):
+    """Normalize a model output tensor into the sample-major array Gradio wants."""
+    audio_np = np.asarray(audio_tensor.detach().cpu().numpy())
+    audio_np = np.squeeze(audio_np)
+
+    if audio_np.ndim == 0:
+        audio_np = audio_np.reshape(1)
+    elif audio_np.ndim > 1:
+        # Multi-channel output can arrive as (channels, samples); Gradio expects
+        # (samples, channels), so put the longest axis first.
+        if audio_np.shape[0] < audio_np.shape[-1]:
+            audio_np = audio_np.T
+        audio_np = audio_np.reshape(audio_np.shape[0], -1)
+
+    return np.ascontiguousarray(audio_np)
 
 
 def generate_speech(text, preset_voice, custom_voice_file):
@@ -99,8 +132,12 @@ def generate_speech(text, preset_voice, custom_voice_file):
 
         print(f"Synthesizing with {voice_label}: {text[:80]}")
         audio_tensor = model.generate_audio(voice_state, text)
-        audio_np = audio_tensor.detach().cpu().numpy()
-        duration = len(audio_np) / model.sample_rate
+        audio_np = to_gradio_audio(audio_tensor)
+
+        if audio_np.size == 0:
+            return None, "The model returned no audio. Try different text."
+
+        duration = audio_np.shape[0] / model.sample_rate
 
         return (model.sample_rate, audio_np), f"Generated {duration:.2f}s of audio."
     except Exception as error:
@@ -115,11 +152,11 @@ def generate_speech(text, preset_voice, custom_voice_file):
                 print(f"Warning: could not delete temp file: {cleanup_error}")
 
 
-def clear_custom_voice_cache():
-    global voice_state_cache
-    preset_paths = set(PRESET_VOICES.values())
-    voice_state_cache = {k: v for k, v in voice_state_cache.items() if k in preset_paths}
-    return "Custom voice cache cleared."
+def clear_voice_cache():
+    with _cache_lock:
+        cleared = len(voice_state_cache)
+        voice_state_cache.clear()
+    return f"Cleared {cleared} cached voice state(s)."
 
 
 def initial_token_status():
@@ -130,7 +167,6 @@ def initial_token_status():
 
 def set_hf_token(accepted_terms, token):
     global tts_model
-    global voice_state_cache
     if not accepted_terms:
         return "Please confirm that you accepted the kyutai/pocket-tts terms on Hugging Face."
 
@@ -145,8 +181,10 @@ def set_hf_token(accepted_terms, token):
         HfApi(token=token).model_info(MODEL_ID)
         os.environ["HF_TOKEN"] = token
         hf_login(token=token, add_to_git_credential=False)
-        tts_model = None
-        voice_state_cache = {}
+        with _model_lock:
+            tts_model = None
+        with _cache_lock:
+            voice_state_cache.clear()
         return "Token saved and model access verified. Voice cloning is ready."
     except Exception as error:
         return (
@@ -266,11 +304,26 @@ with gr.Blocks(title="PocketTTS", theme=gr.themes.Soft()) as demo:
         outputs=[audio_output, status_output],
         api_name="generate",
     )
-    clear_cache_btn.click(clear_custom_voice_cache, outputs=status_output)
+    clear_cache_btn.click(clear_voice_cache, outputs=status_output)
+
+
+def resolve_port(default=7860):
+    raw = os.environ.get("PORT", "").strip()
+    if not raw:
+        return default
+    try:
+        port = int(raw)
+    except ValueError:
+        print(f"Ignoring invalid PORT value {raw!r}; falling back to {default}.")
+        return default
+    if not 1 <= port <= 65535:
+        print(f"Ignoring out-of-range PORT value {port}; falling back to {default}.")
+        return default
+    return port
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "7860"))
+    port = resolve_port()
     print("Starting PocketTTS Gradio interface")
     print(f"Available voices: {', '.join(PRESET_VOICES.keys())}")
     demo.launch(
