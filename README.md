@@ -9,6 +9,8 @@ PocketTTS is a lightweight CPU text-to-speech launcher for Kyutai's PocketTTS mo
 - Optional custom voice cloning with a Hugging Face account that has accepted the `kyutai/pocket-tts` model terms.
 - Pinokio install, start, update, reset, disk deduplication, and Hugging Face login actions.
 
+Intel Macs are not supported: pocket-tts requires torch 2.5 or newer, and PyTorch stopped publishing Intel macOS wheels after 2.2.2.
+
 ## Using With Pinokio
 
 1. Add this repository to Pinokio.
@@ -62,13 +64,15 @@ The launcher creates its virtual environment at `app/env`, which is gitignored.
 
 Use `app/env` so a manual run shares the virtual environment the launcher creates.
 
+Install torch before the requirements: pocket-tts depends on torch, so installing the requirements first pulls PyPI's default build (CUDA on Linux) and the CPU install afterwards is skipped as already satisfied.
+
 On Windows:
 
 ```bat
 python -m venv app\env
 app\env\Scripts\activate
-uv pip install -r app\requirements.txt
 uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+uv pip install -r app\requirements.txt
 cd app
 python app.py
 ```
@@ -78,8 +82,8 @@ On macOS or Linux:
 ```bash
 python -m venv app/env
 source app/env/bin/activate
-uv pip install -r app/requirements.txt
 uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+uv pip install -r app/requirements.txt
 cd app
 python app.py
 ```
