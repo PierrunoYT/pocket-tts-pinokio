@@ -9,7 +9,7 @@ import threading
 import gradio as gr
 import numpy as np
 import soundfile as sf
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, get_token
 from huggingface_hub import login as hf_login
 from pocket_tts import TTSModel
 
@@ -180,8 +180,10 @@ def clear_voice_cache():
 
 
 def initial_token_status():
-    if os.environ.get("HF_TOKEN"):
-        return "HF_TOKEN is already set for this session."
+    # get_token() checks HF_TOKEN and the token file that `hf auth login`
+    # (the Pinokio Hugging Face Login action) writes.
+    if get_token():
+        return "A Hugging Face token is already configured."
     return "No token set yet. Accept the model terms, then paste your token here."
 
 
@@ -247,7 +249,8 @@ with gr.Blocks(title="PocketTTS", theme=gr.themes.Soft()) as demo:
         token_status = gr.Textbox(
             label="Token Status",
             interactive=False,
-            value=initial_token_status(),
+            # Passing the function re-evaluates the status on every page load.
+            value=initial_token_status,
             lines=4,
         )
         gr.Markdown(
