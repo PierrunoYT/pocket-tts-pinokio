@@ -3,16 +3,8 @@ module.exports = {
     bundle: "ai"
   },
   run: [
-    {
-      method: "shell.run",
-      params: {
-        venv: "env",
-        path: "app",
-        message: [
-          "uv pip install -r requirements.txt"
-        ]
-      }
-    },
+    // Install torch first so the requirements step finds it already satisfied
+    // instead of pulling PyPI's default build only to have it replaced.
     {
       method: "script.start",
       params: {
@@ -23,6 +15,16 @@ module.exports = {
           xformers: false,
           flashattn: false
         }
+      }
+    },
+    {
+      method: "shell.run",
+      params: {
+        venv: "env",
+        path: "app",
+        message: [
+          "uv pip install -r requirements.txt"
+        ]
       }
     },
     {
