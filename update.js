@@ -16,6 +16,20 @@ module.exports = {
         ]
       }
     },
+    // --upgrade also upgrades torch, a transitive dependency, to PyPI's
+    // default build, so restore the platform-specific build afterwards.
+    {
+      method: "script.start",
+      params: {
+        uri: "torch.js",
+        params: {
+          path: "app",
+          venv: "env",
+          xformers: false,
+          flashattn: false
+        }
+      }
+    },
     {
       method: "notify",
       params: {
