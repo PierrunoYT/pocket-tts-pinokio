@@ -200,7 +200,9 @@ def set_hf_token(accepted_terms, token):
         return "That does not look like a Hugging Face token. It should start with hf_."
 
     try:
-        HfApi(token=token).model_info(MODEL_ID)
+        # model_info succeeds for gated repos even without accepted terms, so
+        # auth_check is the call that actually confirms access.
+        HfApi(token=token).auth_check(MODEL_ID)
         os.environ["HF_TOKEN"] = token
         hf_login(token=token, add_to_git_credential=False)
         with _model_lock:
